@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "665112773024",
+    "project_id": "wesalapp-49534",
+    "storage_bucket": "wesalapp-49534.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:665112773024:android:9ef8800a1e57780e1564c5",
+        "android_client_info": {
+          "package_name": "com.company.wesalapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB--anLLiiGhXQFVBK2riqgtsJRRiFHJUk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:665112773024:android:8493a2dc8718505d1564c5",
+        "android_client_info": {
+          "package_name": "com.example.wesalapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB--anLLiiGhXQFVBK2riqgtsJRRiFHJUk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
