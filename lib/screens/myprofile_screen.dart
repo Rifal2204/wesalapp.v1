@@ -101,7 +101,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // ✅ الإحصائيات الحقيقية (عدد الأنشطة المنشئة والمنضم لها)
+            
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('activities')
@@ -132,7 +132,7 @@ class ProfileScreen extends StatelessWidget {
 
                 const SizedBox(height: 32),
 
-                // ✅ عرض البايو (إذا موجود فقط)
+                //  عرض البايو  
                 if ((data['bio'] ?? '').isNotEmpty)
                   Container(
                     width: double.infinity,
@@ -161,7 +161,7 @@ class ProfileScreen extends StatelessWidget {
 
                 const SizedBox(height: 32),
 
-                // ✅ عرض الأنشطة التي أنشأها المستخدم
+               
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('activities')

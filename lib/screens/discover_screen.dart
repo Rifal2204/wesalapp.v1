@@ -1,8 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:wesalapp/screens/myprofile_screen.dart';
 import 'package:wesalapp/widget/interest_card.dart';
-import '../widget/popular_group_card.dart';
-import 'myprofile_screen.dart';
+import 'package:wesalapp/widget/popular_group_card.dart';
 import 'add_activity_screen.dart';
 
 class DiscoverScreen extends StatelessWidget {
@@ -60,7 +59,7 @@ class DiscoverScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'مرحبا',
+                          'hello@reallygreatsite.com',
                           style: TextStyle(fontSize: 14, color: Colors.black54),
                         ),
                       ],
@@ -118,63 +117,28 @@ class DiscoverScreen extends StatelessWidget {
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [              const SizedBox(height: 32),
-              const Text(
-                'الأنشطة المقترحة',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              StreamBuilder(
-                stream: FirebaseFirestore.instance
-                    .collection('activities')
-                    .orderBy('createdAt', descending: true)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return const Center(child: Text('حدث خطأ في تحميل الأنشطة'));
-                  }
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final docs = snapshot.data!.docs;
-                  if (docs.isEmpty) {
-                    return const Center(child: Text('لا توجد أنشطة حالياً'));
-                  }
-
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: docs.length,
-                    itemBuilder: (context, index) {
-                      final activity = docs[index].data() as Map<String, dynamic>;
-
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/activity-details',
-                            arguments: docs[index].id, 
-                          );
-                        },
-                        child: Card(
-                          margin: const EdgeInsets.symmetric(vertical: 8),
-                          child: ListTile(
-                            leading: const CircleAvatar(
-                              backgroundImage: AssetImage('assets/images/profile.png'),
-                            ),
-                            title: Text(activity['name'] ?? 'بدون عنوان'),
-                            subtitle: Text(
-                              (activity['time'] as Timestamp?)?.toDate().toLocal().toString() ??
-                                  'لا يوجد وقت محدد',
-                            ),
-                          ),
+                  children: [
+                    const Text(
+                      'أنشطة اليوم',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('لقاء أصدقاء الجيم اليوم الساعة 4 مساءً'),
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.lightBlue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      );
-                    },
-                  );
-                },
-              ),
-                  ]
+                      ),
+                      onPressed: () {},
+                      child: const Text('انضم الآن'),
+                    ),
+                  ],
                 ),
               ),
 

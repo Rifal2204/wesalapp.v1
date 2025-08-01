@@ -5,7 +5,7 @@ import 'package:wesalapp/screens/add_activity_screen.dart';
 import 'firebase_options.dart';
 import 'screens/login.dart';
 import 'screens/register.dart';
-import 'screens/discover_screen.dart'; // استيراد الصفحة الصحيحة
+import 'screens/discover_screen.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

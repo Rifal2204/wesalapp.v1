@@ -25,7 +25,6 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordCtrl.text.trim(),
       );
 
-      // ✅ تعديل هنا: التنقل إلى DiscoverScreen عبر route '/discover'
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/discover');
       }

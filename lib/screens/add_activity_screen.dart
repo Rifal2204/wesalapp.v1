@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -23,6 +22,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
   Future<void> _pickImage() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked != null) {
+      // Save image locally
       final directory = await getApplicationDocumentsDirectory();
       final localPath =
           '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -33,28 +33,17 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
 
   Future<void> _addActivity() async {
     if (!_formKey.currentState!.validate() || _selectedTime == null) return;
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      setState(() {
-        _error = 'لم يتم العثور على المستخدم. يرجى تسجيل الدخول مجددًا.';
-      });
-      return;
-    }
-
     setState(() {
       _loading = true;
       _error = null;
     });
-
     try {
       await FirebaseFirestore.instance.collection('activities').add({
         'name': _nameCtrl.text.trim(),
         'count': int.tryParse(_countCtrl.text.trim()) ?? 0,
         'time': _selectedTime,
-        'imagePath': _imageFile?.path,
+        'imagePath': _imageFile?.path, // Save local path (optional)
         'createdAt': FieldValue.serverTimestamp(),
-        'userId': user.uid,
       });
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -107,13 +96,14 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                         backgroundColor: Colors.amber.shade50,
                         backgroundImage:
                             _imageFile != null ? FileImage(_imageFile!) : null,
-                        child: _imageFile == null
-                            ? const Icon(
-                                Icons.add_a_photo,
-                                size: 32,
-                                color: Colors.amber,
-                              )
-                            : null,
+                        child:
+                            _imageFile == null
+                                ? const Icon(
+                                  Icons.add_a_photo,
+                                  size: 32,
+                                  color: Colors.amber,
+                                )
+                                : null,
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -128,8 +118,11 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                         filled: true,
                         fillColor: const Color(0xFFF7F7F7),
                       ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'أدخل اسم النشاط' : null,
+                      validator:
+                          (v) =>
+                              (v == null || v.trim().isEmpty)
+                                  ? 'أدخل اسم النشاط'
+                                  : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -144,8 +137,11 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                         fillColor: const Color(0xFFF7F7F7),
                       ),
                       keyboardType: TextInputType.number,
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'أدخل العدد' : null,
+                      validator:
+                          (v) =>
+                              (v == null || v.trim().isEmpty)
+                                  ? 'أدخل العدد'
+                                  : null,
                     ),
                     const SizedBox(height: 16),
                     ListTile(
@@ -196,16 +192,17 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                           ),
                         ),
                         onPressed: _loading ? null : _addActivity,
-                        child: _loading
-                            ? const SizedBox(
-                                height: 22,
-                                width: 22,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('إضافة النشاط'),
+                        child:
+                            _loading
+                                ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : const Text('إضافة النشاط'),
                       ),
                     ),
                   ],
