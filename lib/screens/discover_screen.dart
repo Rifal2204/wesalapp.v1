@@ -1,11 +1,25 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:wesalapp/screens/myprofile_screen.dart';
+import 'package:wesalapp/core/image_db.dart';
+import 'package:wesalapp/screens/Rifalscreens/activity_details_screen.dart';
+import 'package:wesalapp/screens/Rifalscreens/myprofile_screen.dart';
+import 'package:wesalapp/screens/all_activities_screen.dart';
 import 'package:wesalapp/widget/interest_card.dart';
 import 'package:wesalapp/widget/popular_group_card.dart';
 import 'add_activity_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
-class DiscoverScreen extends StatelessWidget {
+class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
+
+  @override
+  State<DiscoverScreen> createState() => _DiscoverScreenState();
+}
+
+class _DiscoverScreenState extends State<DiscoverScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   final List<String> interests = const [
     'نادي الكتاب',
@@ -92,11 +106,26 @@ class DiscoverScreen extends StatelessWidget {
 
               // — Search bar —
               TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value.trim();
+                  });
+                },
                 decoration: InputDecoration(
                   hintText: 'ابحث عن نشاط، اهتمامات، مواعيد…',
                   filled: true,
                   fillColor: Colors.white,
                   prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
                   contentPadding: const EdgeInsets.symmetric(vertical: 0),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -105,41 +134,389 @@ class DiscoverScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 24),
+              if (_searchQuery.isNotEmpty)
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('activities')
+                      .where('type', isEqualTo: _searchQuery)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Text(
+                          'لا توجد نتائج مطابقة.',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      );
+                    }
 
-              // — Today's Agenda card —
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade100,
-                  borderRadius: BorderRadius.circular(12),
+                    final results = snapshot.data!.docs;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 16),
+                        const Text(
+                          'نتائج البحث:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: results.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (ctx, index) {
+                            final data =
+                                results[index].data() as Map<String, dynamic>;
+                            final name = data['name'] ?? 'نشاط';
+                            final location = data['location'] ?? 'غير معروف';
+                            final time = (data['time'] as Timestamp).toDate();
+                            final imageId = data['imageId'] as int?;
+
+                            final formattedTime = DateFormat.Hm().format(time);
+
+                            return FutureBuilder<Uint8List?>(
+                              future: imageId != null
+                                  ? ImageDB.getImage(imageId)
+                                  : null,
+                              builder: (ctx, snapshot) {
+                                return Card(
+                                  margin: EdgeInsets.zero,
+                                  elevation: 3,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Row(
+                                      children: [
+                                        if (snapshot.hasData)
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            child: Image.memory(
+                                              snapshot.data!,
+                                              width: 80,
+                                              height: 80,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          )
+                                        else
+                                          Container(
+                                            width: 80,
+                                            height: 80,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              color: Colors.grey[200],
+                                            ),
+                                            child: const Icon(
+                                              Icons.image,
+                                              size: 30,
+                                            ),
+                                          ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                name,
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text('📍 $location'),
+                                              Text('🕓 $formattedTime'),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    );
+                  },
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'أنشطة اليوم',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+
+              const SizedBox(height: 24),
+              // today's activities
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('activities')
+                    .where(
+                      'time',
+                      isGreaterThanOrEqualTo: DateTime(
+                        DateTime.now().year,
+                        DateTime.now().month,
+                        DateTime.now().day,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('لقاء أصدقاء الجيم اليوم الساعة 4 مساءً'),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.lightBlue,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    )
+                    .where(
+                      'time',
+                      isLessThan: DateTime(
+                        DateTime.now().year,
+                        DateTime.now().month,
+                        DateTime.now().day + 1,
+                      ),
+                    )
+                    .orderBy('time')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Text(
+                              'أنشطة اليوم',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(), // just for spacing
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'لا توجد أنشطة مجدولة لليوم.',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  final docs = snapshot.data!.docs;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'أنشطة اليوم',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const AllActivitiesScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              'عرض المزيد',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.deepPurple,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 240,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          // reverse: true,
+                          itemCount: docs.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            final data =
+                                docs[index].data() as Map<String, dynamic>;
+                            final name = data['name'] ?? 'نشاط';
+                            final location = data['location'] ?? 'غير معروف';
+                            final time = (data['time'] as Timestamp).toDate();
+                            final imageId = data['imageId'] as int?;
+
+                            final formattedTime =
+                                '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+
+                            return FutureBuilder<Uint8List?>(
+                              future: imageId != null
+                                  ? ImageDB.getImage(imageId)
+                                  : null,
+                              builder: (context, imageSnapshot) {
+                                Widget? imageWidget;
+                                if (imageSnapshot.connectionState ==
+                                        ConnectionState.done &&
+                                    imageSnapshot.hasData) {
+                                  imageWidget = ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.memory(
+                                      imageSnapshot.data!,
+                                      height: 100,
+                                      width: double.infinity,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  );
+                                }
+
+                                return Container(
+                                  width: 220,
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.grey.shade200,
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (imageWidget != null) ...[
+                                        imageWidget,
+                                        const SizedBox(height: 10),
+                                      ],
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              name,
+                                              style: const TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      ActivityDetailsScreen(
+                                                        activityId:
+                                                            docs[index].id,
+                                                      ),
+                                                ),
+                                              );
+                                            },
+
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  Colors.blue.shade400,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 4,
+                                                    horizontal: 8,
+                                                  ),
+                                              minimumSize: Size.zero,
+                                              tapTargetSize:
+                                                  MaterialTapTargetSize
+                                                      .shrinkWrap,
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              'انضم الآن',
+                                              style: TextStyle(fontSize: 12),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.location_on,
+                                            size: 16,
+                                            color: Colors.grey,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              location,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.access_time,
+                                            size: 16,
+                                            color: Colors.grey,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'اليوم الساعة $formattedTime',
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            );
+                          },
                         ),
                       ),
-                      onPressed: () {},
-                      child: const Text('انضم الآن'),
-                    ),
-                  ],
-                ),
+                    ],
+                  );
+                },
               ),
 
               const SizedBox(height: 32),
@@ -156,17 +533,15 @@ class DiscoverScreen extends StatelessWidget {
                   scrollDirection: Axis.horizontal,
                   itemCount: interests.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder:
-                      (ctx, i) => InterestCard(
-                        title: interests[i],
-                        color:
-                            [
-                              Colors.amber.shade200,
-                              Colors.red.shade200,
-                              Colors.lightBlue.shade200,
-                              Colors.blue.shade300,
-                            ][i],
-                      ),
+                  itemBuilder: (ctx, i) => InterestCard(
+                    title: interests[i],
+                    color: [
+                      Colors.amber.shade200,
+                      Colors.red.shade200,
+                      Colors.lightBlue.shade200,
+                      Colors.blue.shade300,
+                    ][i],
+                  ),
                 ),
               ),
 
@@ -188,12 +563,11 @@ class DiscoverScreen extends StatelessWidget {
                   mainAxisSpacing: 12,
                   childAspectRatio: 3 / 4,
                 ),
-                itemBuilder:
-                    (ctx, i) => PopularGroupCard(
-                      imagePath: groups[i]['image']!,
-                      title: groups[i]['title']!,
-                      subtitle: groups[i]['subtitle']!,
-                    ),
+                itemBuilder: (ctx, i) => PopularGroupCard(
+                  imagePath: groups[i]['image']!,
+                  title: groups[i]['title']!,
+                  subtitle: groups[i]['subtitle']!,
+                ),
               ),
 
               // const SizedBox(height: 80), // leave space for bottom nav

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:wesalapp/screens/activity_details_screen.dart';
-import 'package:wesalapp/screens/add_activity_screen.dart';
+import 'package:wesalapp/screens/Rifalscreens/activity_details_screen.dart';
 import 'firebase_options.dart';
 import 'screens/login.dart';
 import 'screens/register.dart';

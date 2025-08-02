@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:wesalapp/screens/login.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -65,11 +66,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
-    if (context.mounted) {
-      Navigator.of(context).pushReplacementNamed('/sign-in');
-    }
+  await FirebaseAuth.instance.signOut();
+
+  if (context.mounted) {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (Route<dynamic> route) => false,
+    );
   }
+}
+
 
   @override
   void dispose() {

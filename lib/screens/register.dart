@@ -16,6 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordCtrl = TextEditingController();
   bool _loading = false;
   String? _error;
+  String? _selectedGender;
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
@@ -36,6 +37,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'name': _nameCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
+        'gender': _selectedGender,
       });
 
       if (mounted) Navigator.pushReplacementNamed(context, '/sign-in');
@@ -124,11 +126,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         filled: true,
                         fillColor: const Color(0xFFF7F7F7),
                       ),
-                      validator:
-                          (v) =>
-                              (v == null || v.trim().length < 2)
-                                  ? 'الرجاء إدخال اسم صحيح'
-                                  : null,
+                      validator: (v) => (v == null || v.trim().length < 2)
+                          ? 'الرجاء إدخال اسم صحيح'
+                          : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -143,13 +143,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         fillColor: const Color(0xFFF7F7F7),
                       ),
                       keyboardType: TextInputType.emailAddress,
-                      validator:
-                          (v) =>
-                              (v == null || !v.contains('@'))
-                                  ? 'الرجاء إدخال بريد إلكتروني صالح'
-                                  : null,
+                      validator: (v) => (v == null || !v.contains('@'))
+                          ? 'الرجاء إدخال بريد إلكتروني صالح'
+                          : null,
                     ),
                     const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: _selectedGender,
+                      onChanged: (value) =>
+                          setState(() => _selectedGender = value),
+                      decoration: InputDecoration(
+                        labelText: 'الجنس',
+                        prefixIcon: const Icon(Icons.person_outline),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF7F7F7),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'ذكر', child: Text('ذكر')),
+                        DropdownMenuItem(value: 'أنثى', child: Text('أنثى')),
+                      ],
+                      validator: (value) => (value == null || value.isEmpty)
+                          ? 'الرجاء اختيار الجنس'
+                          : null,
+                    ),
+                    const SizedBox(height: 16),
+
                     TextFormField(
                       controller: _passwordCtrl,
                       decoration: InputDecoration(
@@ -162,11 +183,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         fillColor: const Color(0xFFF7F7F7),
                       ),
                       obscureText: true,
-                      validator:
-                          (v) =>
-                              (v == null || v.length < 6)
-                                  ? 'يجب أن تكون كلمة المرور 6 أحرف على الأقل'
-                                  : null,
+                      validator: (v) => (v == null || v.length < 6)
+                          ? 'يجب أن تكون كلمة المرور 6 أحرف على الأقل'
+                          : null,
                     ),
                     const SizedBox(height: 24),
 
@@ -191,17 +210,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                         onPressed: _loading ? null : _register,
-                        child:
-                            _loading
-                                ? const SizedBox(
-                                  height: 22,
-                                  width: 22,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                                : const Text('تسجيل'),
+                        child: _loading
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('تسجيل'),
                       ),
                     ),
 
@@ -213,14 +231,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           'لديك حساب؟',
                           style: TextStyle(fontFamily: 'Cairo'),
                         ),
-                       TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const LoginScreen()),
-                          );
-                        },
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const LoginScreen(),
+                              ),
+                            );
+                          },
                           child: const Text(
                             'تسجيل الدخول',
                             style: TextStyle(

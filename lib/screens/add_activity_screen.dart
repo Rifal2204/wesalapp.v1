@@ -1,59 +1,104 @@
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../core/image_db.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AddActivityScreen extends StatefulWidget {
   const AddActivityScreen({super.key});
+
   @override
   State<AddActivityScreen> createState() => _AddActivityScreenState();
 }
+final userId = FirebaseAuth.instance.currentUser?.uid;//اضافة لربط الاكفيتي باليوزر
 
 class _AddActivityScreenState extends State<AddActivityScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _countCtrl = TextEditingController();
-  DateTime? _selectedTime;
+  final _locationCtrl = TextEditingController();
+
+  DateTime? _selectedDateTime;
   File? _imageFile;
+  int? _imageId;
   bool _loading = false;
   String? _error;
 
   Future<void> _pickImage() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked != null) {
-      // Save image locally
-      final directory = await getApplicationDocumentsDirectory();
-      final localPath =
-          '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final localImage = await File(picked.path).copy(localPath);
-      setState(() => _imageFile = localImage);
+      final bytes = await picked.readAsBytes();
+      if (!kIsWeb) {
+        final id = await ImageDB.insertImage(bytes);
+        final file = File(picked.path);
+
+        setState(() {
+          _imageFile = file;
+          _imageId = id;
+        });
+      } else {
+        // On web, you can still store image in memory or skip
+        setState(() {
+          _imageFile = null;
+          _imageId = null;
+        });
+      }
     }
   }
 
+  Future<void> _pickDateTime() async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now.subtract(const Duration(days: 1)),
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (date == null) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now),
+    );
+    if (time == null) return;
+
+    setState(() {
+      _selectedDateTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
+    });
+  }
+
   Future<void> _addActivity() async {
-    if (!_formKey.currentState!.validate() || _selectedTime == null) return;
+    if (!_formKey.currentState!.validate() || _selectedDateTime == null) return;
+
     setState(() {
       _loading = true;
       _error = null;
     });
+
     try {
       await FirebaseFirestore.instance.collection('activities').add({
         'name': _nameCtrl.text.trim(),
         'count': int.tryParse(_countCtrl.text.trim()) ?? 0,
-        'time': _selectedTime,
-        'imagePath': _imageFile?.path, // Save local path (optional)
+        'location': _locationCtrl.text.trim(),
+        'time': _selectedDateTime,
+        'imageId': _imageId,
         'createdAt': FieldValue.serverTimestamp(),
+         'creatorId': FirebaseAuth.instance.currentUser?.uid,
+
       });
       if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      setState(() {
-        _error = 'حدث خطأ، حاول مرة أخرى.';
-      });
+    } catch (_) {
+      setState(() => _error = 'حدث خطأ، حاول مرة أخرى.');
     } finally {
-      setState(() {
-        _loading = false;
-      });
+      setState(() => _loading = false);
     }
   }
 
@@ -89,24 +134,6 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    GestureDetector(
-                      onTap: _pickImage,
-                      child: CircleAvatar(
-                        radius: 44,
-                        backgroundColor: Colors.amber.shade50,
-                        backgroundImage:
-                            _imageFile != null ? FileImage(_imageFile!) : null,
-                        child:
-                            _imageFile == null
-                                ? const Icon(
-                                  Icons.add_a_photo,
-                                  size: 32,
-                                  color: Colors.amber,
-                                )
-                                : null,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
                     TextFormField(
                       controller: _nameCtrl,
                       decoration: InputDecoration(
@@ -144,32 +171,73 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                                   : null,
                     ),
                     const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _locationCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'الموقع',
+                        prefixIcon: const Icon(Icons.location_on),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF7F7F7),
+                      ),
+                      validator:
+                          (v) =>
+                              (v == null || v.trim().isEmpty)
+                                  ? 'أدخل الموقع'
+                                  : null,
+                    ),
+                    const SizedBox(height: 16),
                     ListTile(
                       leading: const Icon(Icons.access_time),
                       title: Text(
-                        _selectedTime == null
-                            ? 'اختر الوقت'
-                            : '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}',
+                        _selectedDateTime == null
+                            ? 'اختر التاريخ والوقت'
+                            : '${_selectedDateTime!.year}/${_selectedDateTime!.month.toString().padLeft(2, '0')}/${_selectedDateTime!.day.toString().padLeft(2, '0')} - '
+                                '${_selectedDateTime!.hour.toString().padLeft(2, '0')}:${_selectedDateTime!.minute.toString().padLeft(2, '0')}',
                         style: const TextStyle(fontFamily: 'Cairo'),
                       ),
-                      onTap: () async {
-                        final now = DateTime.now();
-                        final picked = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay.now(),
-                        );
-                        if (picked != null) {
-                          setState(() {
-                            _selectedTime = DateTime(
-                              now.year,
-                              now.month,
-                              now.day,
-                              picked.hour,
-                              picked.minute,
-                            );
-                          });
-                        }
-                      },
+                      onTap: _pickDateTime,
+                    ),
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: _pickImage,
+                      child: Container(
+                        height: 160,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          image:
+                              _imageFile != null
+                                  ? DecorationImage(
+                                    image: FileImage(_imageFile!),
+                                    fit: BoxFit.cover,
+                                  )
+                                  : null,
+                        ),
+                        child:
+                            _imageFile == null
+                                ? Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: const [
+                                      Icon(
+                                        Icons.add_photo_alternate,
+                                        size: 40,
+                                        color: Colors.amber,
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'تحديد صورة',
+                                        style: TextStyle(color: Colors.amber),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                                : null,
+                      ),
                     ),
                     const SizedBox(height: 18),
                     if (_error != null)
