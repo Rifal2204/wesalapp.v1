@@ -211,7 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: ListTile(
                           leading: data['imagePath'] != null
                               ? Image.network(data['imagePath'], width: 50, height: 50, fit: BoxFit.cover)
-                              : Icon(Icons.sports, color: Colors.amber),
+                              : Icon(Icons.local_activity, color: Colors.amber),
                           title: Text(data['name'] ?? ''),
                           subtitle: Text(formatTimestamp(data['createdAt'] as Timestamp?)),
                           onTap: () {

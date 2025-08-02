@@ -103,7 +103,6 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // تصميم المستخدم المنشئ
                     Row(
                       children: [
                         CircleAvatar(
@@ -115,7 +114,7 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
                         ),
                         SizedBox(width: 10),
                         Text(
-                          user['name'], // مفروض دايمًا موجود
+                          user['name'], 
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -127,7 +126,7 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
 
                     // اسم النشاط
                     Text(
-                      data['name'], // مفروض دايمًا موجود
+                      data['name'], 
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -135,7 +134,6 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
                     ),
                     SizedBox(height: 10),
 
-                    // *** حذفت وصف النشاط هنا ***
 
                     // وقت النشاط
                     Text('🕓 الوقت: ${formatTime(data['time'])}'),
@@ -191,13 +189,12 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
                           },
                         ),
 
-                        // عدد اللايكات قابل للنقر لعرض الأشخاص
+                        // عدد اللايكات    
                         GestureDetector(
                           onTap: () {
-                            // هنا تقدر تضيف شاشة عرض اللايكات اذا حبيت
                           },
                           child: Text(
-                            '$totalLikes إعجاب',
+                            '$totalLikes الإعجابات',
                             style: TextStyle(
                               fontSize: 16,
                               color: Colors.grey[800],
@@ -205,10 +202,10 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
                           ),
                         ),
 
-                        Spacer(),
 
-                        // زر الانضمام أو الدردشة أو عرض ممتلئ
-                        joined || userId == creatorId
+                        Spacer(),
+                      //زر الانضمام//
+                         joined || userId == creatorId //اذا كان المستخدم الريدي بالنشاط او هو المنشئ يظهر له زر الدردشة
                             ? ElevatedButton(
                                 onPressed: () {
                                   Navigator.push(
@@ -225,12 +222,15 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
                                 ),
                                 child: Text('الدردشة'),
                               )
+
+                              //اذا العدد مكتمل
                             : full
                             ? ElevatedButton(
                                 onPressed: null,
                                 child: Text('اكتمل العدد'),
                               )
-                            : ElevatedButton(
+
+                            : ElevatedButton(//هنا ينضم المستخدم
                                 onPressed: () async {
                                   await FirebaseFirestore.instance
                                       .collection('activities')
@@ -241,7 +241,7 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
 
                                   setState(() {
                                     joined = true;
-                                    totalJoined++;
+                                    totalJoined++;//عدد المنضمين+1
                                   });
 
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -252,6 +252,7 @@ class _ActivityDetailsScreenState extends State<ActivityDetailsScreen> {
                                 },
                                 child: Text('انضم'),
                               ),
+                      
                       ],
                     ),
                   ],

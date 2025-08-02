@@ -431,14 +431,11 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                                           ),
                                           const SizedBox(width: 6),
                                           ElevatedButton(
+                                            //زر الانتقال للديتيلز
                                             onPressed: () {
                                               Navigator.of(context).push(
                                                 MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      ActivityDetailsScreen(
-                                                        activityId:
-                                                            docs[index].id,
-                                                      ),
+                                                  builder: (_) =>  ActivityDetailsScreen( activityId:docs[index].id  ),//هنا عرفت الاكتفيتي ايدي عشان ينقلني لصفحة الديتيلز الخاصة فيه//
                                                 ),
                                               );
                                             },

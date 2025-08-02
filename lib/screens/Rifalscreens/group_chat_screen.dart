@@ -25,7 +25,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Future<void> loadUsersData() async {
-    // جلب كل رسائل الدردشة مرة واحدة لجمع معرفات المرسلين
     final chatSnapshot = await FirebaseFirestore.instance
         .collection('activities')
         .doc(widget.activityId)
