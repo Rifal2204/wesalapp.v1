@@ -123,7 +123,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                                   senderName,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey[700],
+                                    color: const Color.fromARGB(255, 0, 0, 0),
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),

@@ -1,12 +1,14 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
-
+import 'package:image_picker/image_picker.dart';
 import 'settings_screen.dart';
 import 'activity_details_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -14,11 +16,12 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String selectedTab = 'created';
-
   Map<String, dynamic>? userData;
   List<Map<String, dynamic>> activities = [];
   bool isLoading = true;
   String errorMessage = '';
+
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -28,7 +31,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<List<Map<String, dynamic>>> getJoinedActivities(String userId) async {
     final activitiesQuery = await FirebaseFirestore.instance.collection('activities').get();
-
     List<Map<String, dynamic>> joinedActivities = [];
 
     for (var doc in activitiesQuery.docs) {
@@ -61,6 +63,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
         return;
       }
+
       userData = userDoc.data();
 
       if (selectedTab == 'created') {
@@ -76,7 +79,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return d;
         }).toList();
       } else {
-        // جلب الأنشطة التي انضم إليها المستخدم
         activities = await getJoinedActivities(user.uid);
       }
 
@@ -89,6 +91,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
         errorMessage = 'حدث خطأ أثناء التحميل';
         isLoading = false;
       });
+    }
+  }
+
+  Future<void> pickAndUploadImage() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile == null) return;
+
+    final storageRef = FirebaseStorage.instance.ref().child('profile_images/${user.uid}.jpg');
+
+    try {
+      await storageRef.putFile(File(pickedFile.path));
+      final photoUrl = await storageRef.getDownloadURL();
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'photoUrl': photoUrl,
+      });
+
+      setState(() {
+        userData?['photoUrl'] = photoUrl;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ تم تحديث الصورة بنجاح')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ فشل في رفع الصورة')),
+      );
     }
   }
 
@@ -121,14 +154,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (errorMessage.isNotEmpty) {
       return Scaffold(
-        appBar: AppBar(title: Text('الملف الشخصي')),
+        appBar: AppBar(title: Text('حسابي'),
+         backgroundColor: const Color(0xFFF5F5F5),),
         body: Center(child: Text(errorMessage)),
       );
     }
 
     return Scaffold(
+       backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       appBar: AppBar(
-        title: Text('الملف الشخصي'),
+        title: Text('حسابي'),
         centerTitle: true,
         actions: [
           IconButton(
@@ -143,34 +178,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: EdgeInsets.all(20),
         child: Column(
           children: [
-            CircleAvatar(
-              radius: 50,
-              backgroundImage: userData != null && userData!['photoUrl'] != null
-                  ? NetworkImage(userData!['photoUrl'])
-                  : AssetImage('assets/images/profile.png') as ImageProvider,
+            Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundImage: userData != null && userData!['photoUrl'] != null
+                      ? NetworkImage(userData!['photoUrl'])
+                      : AssetImage('assets/images/profile.png') as ImageProvider,
+                ),
+                Positioned(
+                  child: IconButton(
+                    icon: Icon(Icons.camera_alt, color: Colors.amber),
+                    onPressed: pickAndUploadImage,
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 10),
             Text(
               userData?['name'] ?? '',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 5),
             if (userData?['bio'] != null && userData!['bio'].toString().trim().isNotEmpty)
-  Padding(
-    padding: const EdgeInsets.only(top: 5),
-    child: Text(
-      userData!['bio'],
-      style: TextStyle(
-        color: Colors.grey[700],
-        fontSize: 16,
-      ),
-      textAlign: TextAlign.center,
-    ),
-  ),
-
+              Padding(
+                padding: const EdgeInsets.only(top: 5),
+                child: Text(
+                  userData!['bio'],
+                  style: TextStyle(color: Colors.grey[700], fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -178,21 +216,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ElevatedButton(
                   onPressed: () => switchTab('created'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: selectedTab == 'created' ? Colors.amber : Colors.grey[300],
+                    backgroundColor: selectedTab == 'created' ? Colors.amber : Colors.white,
                   ),
                   child: Text(
                     'الأنشطة المنشأة',
-                    style: TextStyle(color: selectedTab == 'created' ? Colors.white : Colors.black),
+                    style: TextStyle(
+                      color: selectedTab == 'created' ? Colors.white : Colors.black,
+                      fontSize: 18,
+                    ),
                   ),
                 ),
                 ElevatedButton(
                   onPressed: () => switchTab('joined'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: selectedTab == 'joined' ? Colors.amber : Colors.grey[300],
+                    backgroundColor: selectedTab == 'joined' ? Colors.amber : Colors.white,
                   ),
                   child: Text(
                     'الأنشطة المنضم لها',
-                    style: TextStyle(color: selectedTab == 'joined' ? Colors.white : Colors.black),
+                    style: TextStyle(
+                      color: selectedTab == 'joined' ? Colors.white : Colors.black,
+                      fontSize: 18,
+                    ),
                   ),
                 ),
               ],
@@ -218,7 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => ActivityDetailsScreen(activityId: data['id']),
+                                builder: (_) => ActivityDetailsScreen(activityId: '', activityData: {},),
                               ),
                             );
                           },

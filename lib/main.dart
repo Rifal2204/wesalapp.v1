@@ -5,12 +5,15 @@ import 'firebase_options.dart';
 import 'screens/login.dart';
 import 'screens/register.dart';
 import 'screens/discover_screen.dart'; 
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await initializeDateFormatting('ar', null);
   runApp(const MyApp());
 }
 
@@ -23,16 +26,26 @@ class MyApp extends StatelessWidget {
       title: 'وصال',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.teal),
+      locale: const Locale('ar'), // اختياري، لو تبي تبدأ بالعربي
+      supportedLocales: const [
+        Locale('ar'),
+        Locale('en'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       initialRoute: '/login',
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/discover': (context) => const DiscoverScreen(), 
-      '/activity-details': (context) {
-    final activityId = ModalRoute.of(context)!.settings.arguments as String;
-    return ActivityDetailsScreen(activityId: activityId);
+        '/activity-details': (context) {
+          final activityId = ModalRoute.of(context)!.settings.arguments as String;
+          return ActivityDetailsScreen(activityId: activityId, activityData: {});
+        },
       },
-      }
     );
   }
 }

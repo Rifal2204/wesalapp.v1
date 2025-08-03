@@ -37,6 +37,11 @@ class ImageDB {
   }
 
   static Future<Uint8List?> getImage(int id) async {
+    if (kIsWeb) {
+      // On web, we can't use SQLite, so return null
+      return null;
+    }
+
     await init();
     final result = await _db!.query(
       'images',
@@ -50,5 +55,32 @@ class ImageDB {
     }
 
     return null;
+  }
+
+  // Helper method to get image bytes from either SQLite (mobile) or Firestore (web)
+  static Future<Uint8List?> getImageFromData(
+      dynamic imageId, dynamic imageBytes) async {
+    if (kIsWeb) {
+      // On web, use imageBytes from Firestore
+      if (imageBytes != null) {
+        Uint8List? finalImageBytes;
+        if (imageBytes is Uint8List) {
+          finalImageBytes = imageBytes;
+        } else if (imageBytes is List) {
+          finalImageBytes = Uint8List.fromList(imageBytes.cast<int>());
+        }
+
+        if (finalImageBytes != null) {
+          return finalImageBytes;
+        }
+      }
+      return null;
+    } else {
+      // On mobile, use imageId to get from SQLite
+      if (imageId != null && imageId is int) {
+        return await getImage(imageId);
+      }
+      return null;
+    }
   }
 }

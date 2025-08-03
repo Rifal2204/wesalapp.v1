@@ -1,8 +1,9 @@
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../core/image_db.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -12,17 +13,23 @@ class AddActivityScreen extends StatefulWidget {
   @override
   State<AddActivityScreen> createState() => _AddActivityScreenState();
 }
-final userId = FirebaseAuth.instance.currentUser?.uid;//اضافة لربط الاكفيتي باليوزر
 
 class _AddActivityScreenState extends State<AddActivityScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _countCtrl = TextEditingController();
+  final _maxParticipantsCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
+  final _descriptionCtrl = TextEditingController();
+  final _typeCtrl = TextEditingController();
+  final _organizerCtrl = TextEditingController();
+  final _contactInfoCtrl = TextEditingController();
+
+  final _requirementsCtrl = TextEditingController();
 
   DateTime? _selectedDateTime;
   File? _imageFile;
   int? _imageId;
+  Uint8List? _imageBytes; // For web image storage
   bool _loading = false;
   String? _error;
 
@@ -30,22 +37,40 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (picked != null) {
       final bytes = await picked.readAsBytes();
-      if (!kIsWeb) {
+
+      if (kIsWeb) {
+        // On web, store the image bytes directly and create a memory image
+        setState(() {
+          _imageFile = null; // No file on web
+          _imageId = null; // No SQLite on web
+          _imageBytes = bytes; // Store bytes for web
+        });
+      } else {
+        // On mobile, use SQLite storage
         final id = await ImageDB.insertImage(bytes);
         final file = File(picked.path);
 
         setState(() {
           _imageFile = file;
           _imageId = id;
-        });
-      } else {
-        // On web, you can still store image in memory or skip
-        setState(() {
-          _imageFile = null;
-          _imageId = null;
+          _imageBytes = null; // Clear web bytes
         });
       }
     }
+  }
+
+  bool _hasImage() {
+    return _imageFile != null || _imageBytes != null;
+  }
+
+  ImageProvider _getImageProvider() {
+    if (kIsWeb && _imageBytes != null) {
+      return MemoryImage(_imageBytes!);
+    } else if (_imageFile != null) {
+      return FileImage(_imageFile!);
+    }
+    // Fallback - this shouldn't happen if _hasImage() returns true
+    return const AssetImage('assets/images/explore.jpg');
   }
 
   Future<void> _pickDateTime() async {
@@ -84,15 +109,35 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
     });
 
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not logged in');
+      }
+
       await FirebaseFirestore.instance.collection('activities').add({
         'name': _nameCtrl.text.trim(),
-        'count': int.tryParse(_countCtrl.text.trim()) ?? 0,
+        'maxParticipants': int.tryParse(_maxParticipantsCtrl.text.trim()) ?? 10,
+        'currentParticipants': 0, // Start with 0 participants
         'location': _locationCtrl.text.trim(),
         'time': _selectedDateTime,
         'imageId': _imageId,
+        'imageBytes': kIsWeb && _imageBytes != null ? _imageBytes : null,
+        'type':
+            _typeCtrl.text.trim().isNotEmpty
+                ? _typeCtrl.text.trim()
+                : 'نشاط عام',
+        'description':
+            _descriptionCtrl.text.trim().isNotEmpty
+                ? _descriptionCtrl.text.trim()
+                : 'لا يوجد وصف متاح',
+        'organizer':
+            _organizerCtrl.text.trim().isNotEmpty
+                ? _organizerCtrl.text.trim()
+                : 'منظم غير معروف',
+        'contactInfo': _contactInfoCtrl.text.trim(),
+        'requirements': _requirementsCtrl.text.trim(),
         'createdAt': FieldValue.serverTimestamp(),
-         'creatorId': FirebaseAuth.instance.currentUser?.uid,
-
+        'creatorId': user.uid,
       });
       if (mounted) Navigator.pop(context, true);
     } catch (_) {
@@ -153,9 +198,9 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
-                      controller: _countCtrl,
+                      controller: _maxParticipantsCtrl,
                       decoration: InputDecoration(
-                        labelText: 'عدد الموجودين',
+                        labelText: 'العدد الأقصى للمشاركين',
                         prefixIcon: const Icon(Icons.people),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -167,7 +212,7 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                       validator:
                           (v) =>
                               (v == null || v.trim().isEmpty)
-                                  ? 'أدخل العدد'
+                                  ? 'أدخل العدد الأقصى'
                                   : null,
                     ),
                     const SizedBox(height: 16),
@@ -187,6 +232,87 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                               (v == null || v.trim().isEmpty)
                                   ? 'أدخل الموقع'
                                   : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _typeCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'نوع النشاط',
+                        prefixIcon: const Icon(Icons.category),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF7F7F7),
+                      ),
+                      validator:
+                          (v) =>
+                              (v == null || v.trim().isEmpty)
+                                  ? 'أدخل نوع النشاط'
+                                  : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _descriptionCtrl,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: 'وصف النشاط',
+                        prefixIcon: const Icon(Icons.description),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF7F7F7),
+                      ),
+                      validator:
+                          (v) =>
+                              (v == null || v.trim().isEmpty)
+                                  ? 'أدخل وصف النشاط'
+                                  : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _organizerCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'اسم المنظم',
+                        prefixIcon: const Icon(Icons.person),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF7F7F7),
+                      ),
+                      validator:
+                          (v) =>
+                              (v == null || v.trim().isEmpty)
+                                  ? 'أدخل اسم المنظم'
+                                  : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _contactInfoCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'معلومات الاتصال (اختياري)',
+                        prefixIcon: const Icon(Icons.phone),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF7F7F7),
+                      ),
+                    ),
+                    TextFormField(
+                      controller: _requirementsCtrl,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        labelText: 'المتطلبات (اختياري)',
+                        prefixIcon: const Icon(Icons.checklist),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF7F7F7),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     ListTile(
@@ -210,15 +336,15 @@ class _AddActivityScreenState extends State<AddActivityScreen> {
                           color: Colors.amber.shade50,
                           borderRadius: BorderRadius.circular(12),
                           image:
-                              _imageFile != null
+                              _hasImage()
                                   ? DecorationImage(
-                                    image: FileImage(_imageFile!),
+                                    image: _getImageProvider(),
                                     fit: BoxFit.cover,
                                   )
                                   : null,
                         ),
                         child:
-                            _imageFile == null
+                            !_hasImage()
                                 ? Center(
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
